@@ -105,6 +105,27 @@ phone verification, so realistically pool 1–3 accounts. `402
 insufficient_funds` = dry pool → wait for reset or Switch-account to a second
 account via `opus login`.
 
+## 🧠 Memory layer (the other half of saving tokens)
+
+Caching makes repeat context cheap; memory makes it *small*. With
+[opencode-supermemory](https://github.com/supermemoryai/opencode-supermemory)
+the agent stores decisions across sessions and recalls them on demand —
+instead of you carrying a 158K-token history forever.
+
+```sh
+bunx opencode-supermemory@latest install --no-tui
+bunx opencode-supermemory@latest login     # or set SUPERMEMORY_API_KEY
+bunx opencode-supermemory@latest status
+cp supermemory.jsonc.example ~/.config/opencode/supermemory.jsonc  # then add your key
+```
+
+Then inside OpenCode run `/supermemory-index` once per project so the
+codebase structure is memorized up front. The working loop becomes: **fresh
+session per task → recall from memory → `/compact` early**. Config template
+with both backends (free cloud tier / local server) is in
+[`supermemory.jsonc.example`](supermemory.jsonc.example); the example
+`opencode.json` already registers the plugin + recall permission.
+
 ## 🗂️ Project structure
 
 ```text
@@ -112,6 +133,7 @@ opus-free/
 ├── puter-proxy.mjs       # the proxy — zero deps, node >= 20
 ├── bin/opus              # global CLI
 ├── opencode.json.example # provider config (Haiku default)
+├── supermemory.jsonc.example # memory-layer config template
 ├── examples/             # curl / python / opencode snippets
 └── docs/ui.png           # sign-in page screenshot
 ```
