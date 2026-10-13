@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.tokens.json
+tokens.json
+pool.db
+.env
+.DS_Store

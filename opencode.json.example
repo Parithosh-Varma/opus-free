@@ -1,0 +1,71 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "puter/claude-haiku-5-5",
+  "small_model": "puter/claude-haiku-5-5",
+  "providers": {
+    "puter": {
+      "name": "Puter",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "http://127.0.0.1:3001/v1",
+        "apiKey": "dummy"
+      },
+      "models": {
+        "claude-opus-5-5": {
+          "name": "Claude Opus 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "claude-sonnet-5-5": {
+          "name": "Claude Sonnet 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "claude-haiku-5-5": {
+          "name": "Claude Haiku 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        }
+      }
+    }
+  },
+  "provider": {
+    "puter": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Puter",
+      "options": {
+        "baseURL": "http://127.0.0.1:3001/v1",
+        "apiKey": "dummy"
+      },
+      "models": {
+        "claude-opus-5-5": {
+          "name": "Claude Opus 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "claude-sonnet-5-5": {
+          "name": "Claude Sonnet 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "claude-haiku-5-5": {
+          "name": "Claude Haiku 5.5 via Puter",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        }
+      }
+    }
+  }
+}

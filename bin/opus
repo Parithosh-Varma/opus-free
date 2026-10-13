@@ -1,0 +1,125 @@
+#!/bin/zsh
+# opus — one-command Puter proxy for Claude Opus 5.5 + OpenCode.
+# Usage: opus [start|stop|restart|status|logs|login|add-token <tok>|tokens|help]
+#   opus            → start proxy on :3001 and open sign-in UI
+set -u
+OPUS_DIR="$HOME/.opus"
+PROXY="$OPUS_DIR/puter-proxy.mjs"
+LOG="$OPUS_DIR/proxy.log"
+PIDF="$OPUS_DIR/proxy.pid"
+TOKENS="$OPUS_DIR/tokens.json"
+PORT="${PUTER_PROXY_PORT:-3001}"
+UI="http://127.0.0.1:$PORT/"
+
+die(){ echo "opus: $*" >&2; exit 1; }
+
+proxy_running(){ curl -s -m 3 "http://127.0.0.1:$PORT/healthz" 2>/dev/null | grep -q '"status":"ok"'; }
+
+open_ui(){ (open "$UI" 2>/dev/null || xdg-open "$UI" 2>/dev/null) & }
+
+do_start(){
+  [[ -f "$PROXY" ]] || die "proxy missing at $PROXY"
+  command -v node >/dev/null || die "node not found"
+  if [[ -f "$PIDF" ]]; then
+    kill -9 "$(cat "$PIDF")" 2>/dev/null || true
+    rm -f "$PIDF"
+  fi
+  lsof -ti:$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+  sleep 0.5
+  cd "$OPUS_DIR"
+  nohup node "$PROXY" > "$LOG" 2>&1 &
+  echo $! > "$PIDF"
+  sleep 2
+  if proxy_running; then
+    echo "opus proxy up → $UI"
+    curl -s -m 5 "http://127.0.0.1:$PORT/healthz"; echo ""
+    echo "opencode: opencode run --model puter/claude-opus-5-5 \"…\"  (needs opencode.json)"
+    open_ui
+  else
+    echo "--- log ---"; tail -n 20 "$LOG"
+    die "proxy failed to start"
+  fi
+}
+
+do_stop(){
+  [[ -f "$PIDF" ]] && { kill -9 "$(cat "$PIDF")" 2>/dev/null || true; rm -f "$PIDF"; }
+  lsof -ti:$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+  echo "opus proxy stopped"
+}
+
+do_status(){
+  if proxy_running; then
+    curl -s -m 5 "http://127.0.0.1:$PORT/healthz"; echo ""
+    curl -s -m 10 "http://127.0.0.1:$PORT/v1/models" | python3 -c "import json,sys; d=json.load(sys.stdin); ids=[m['id'] for m in d.get('data',[])]; print(f'models: {len(ids)} | opus-5-5: {\"claude-opus-5-5\" in ids}')" 2>/dev/null || true
+  else
+    echo "proxy DOWN on :$PORT (run: opus)"
+  fi
+  if [[ -f "$TOKENS" ]]; then
+    python3 -c "import json; d=json.load(open('$TOKENS')); a=d if isinstance(d,list) else d.get('tokens',[]); print(f'saved tokens: {len(a)}')" 2>/dev/null || echo "tokens file present"
+  else
+    echo "saved tokens: 0 (run: opus login)"
+  fi
+}
+
+do_add_token(){
+  local tok="${1:-}"
+  [[ -n "$tok" ]] || die "usage: opus add-token <puter-auth-token>"
+  [[ "${#tok}" -gt 50 ]] || die "token looks too short"
+  python3 - "$tok" <<'PY' 2>&1 || exit 1
+import json, os, sys, sqlite3
+tok = sys.argv[1].strip()
+opus = os.path.expanduser("~/.opus/tokens.json")
+os.makedirs(os.path.dirname(opus), exist_ok=True)
+try:
+    d = json.load(open(opus)) if os.path.exists(opus) else []
+    arr = d if isinstance(d, list) else d.get("tokens", [])
+except Exception:
+    arr = []
+have = [e if isinstance(e, str) else e.get("token") for e in arr]
+if tok not in have:
+    arr.append({"token": tok, "added_at": __import__("datetime").datetime.utcnow().isoformat()})
+    json.dump(arr, open(opus, "w"), indent=2)
+    print(f"saved to {opus} ({len(arr)} total)")
+else:
+    print("token already saved")
+db = os.path.expanduser("~/puter-pool/data/pool.db")
+if os.path.exists(db):
+    con = sqlite3.connect(db)
+    n = con.execute("select count(*) from puter_accounts where token=?", (tok,)).fetchone()[0]
+    if not n:
+        import uuid
+        con.execute("insert into puter_accounts (id,name,token,status,daily_credit_limit) values (?,?,?,?,?)",
+                    (str(uuid.uuid4()), "puter-cli", tok, "active", 100))
+        con.commit()
+        print("added to pool.db")
+    else:
+        print("already in pool.db")
+    con.close()
+PY
+  curl -s -m 5 -X POST "http://127.0.0.1:$PORT/api/reload-tokens" 2>/dev/null; echo ""
+  echo "done."
+}
+
+cmd="${1:-start}"
+case "$cmd" in
+  start|"") do_start ;;
+  stop) do_stop ;;
+  restart) do_stop; sleep 1; do_start ;;
+  status) do_status ;;
+  logs) tail -f "$LOG" ;;
+  login)
+    proxy_running || do_start
+    echo "opening $UI — click \"Sign in to Puter\""
+    open_ui ;;
+  add-token) do_add_token "${2:-}" ;;
+  tokens)
+    [[ -f "$TOKENS" ]] && python3 -c "
+import json; d=json.load(open('$TOKENS'))
+a=d if isinstance(d,list) else d.get('tokens',[])
+for i,e in enumerate(a):
+  u=(e.get('username') if isinstance(e,dict) else None) or '?'
+  t=e if isinstance(e,str) else e.get('token','')
+  print(f'{i}: user={u} len={len(t)} {t[:12]}…{t[-6:]}')" || echo "no tokens (run: opus login)" ;;
+  help|--help|-h) sed -n '2,4p' "$0"; echo "commands: start stop restart status logs login add-token tokens" ;;
+  *) die "unknown: $cmd (try: opus help)" ;;
+esac
