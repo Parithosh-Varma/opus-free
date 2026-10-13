@@ -7,33 +7,42 @@
 
 ![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![No deps](https://img.shields.io/badge/deps-zero-orange)
+![Deps](https://img.shields.io/badge/deps-zero-orange)
+![Models](https://img.shields.io/badge/models-900%2B-purple)
 
 ---
 
-## How it works
+## 👀 What you get
 
-```text
-OpenCode ──OpenAI/Anthropic API──▶ opus proxy :3001 ──▶ api.puter.com ──▶ Claude Opus 5.5 …
-                                    ▲  ▲  ▲
-                          tool calls │ cache │ cost meter
+`opus` starts a local proxy with a sign-in page. One click authenticates you
+with Puter; tokens are verified and pooled automatically.
+
+![opus sign-in UI](docs/ui.png)
+
+## ⚙️ How it works
+
+```mermaid
+flowchart LR
+    OC[OpenCode] -->|OpenAI / Anthropic API| PX[opus proxy :3001]
+    PX -->|queue + failover| T1[token 1]
+    PX -->|queue + failover| T2[token 2]
+    PX -->|queue + failover| TN[token N]
+    T1 & T2 & TN -->|drivers/call| P[api.puter.com]
+    P --> CLAUDE[Claude Opus 5.5 · Sonnet · Haiku · GPT · Gemini …]
+    CLAUDE --> OC
 ```
 
-`opus` starts a zero-dependency local proxy that speaks the exact APIs
-OpenCode expects (`/v1/chat/completions`, `/v1/messages`) and forwards calls
-to Puter using free Puter account tokens — with **function calling**,
-**request queueing with 429 backoff**, **prompt-cache breakpoints**, and
-**live spend tracking** built in.
+Per request, the proxy:
 
-## ✨ Features
-
-| | |
-|---|---|
-| 🔑 **One-click sign-in** | Proxy serves a page with a **Sign in to Puter** button — popup auth, token verified + saved automatically |
-| 🛠️ **Full tool support** | OpenAI `tool_calls` and Anthropic `tool_use` blocks translated end-to-end, so OpenCode agents actually work |
-| 💸 **Credit survival kit** | Prompt-cache breakpoints make repeat context ~5% price on Claude; Haiku default; per-call ¢ logging |
-| 📊 **Live cost meter** | Sign-in page shows session requests/tokens/¢; `GET /api/usage` returns JSON totals per model |
-| 🔁 **Pool + failover** | Round-robin across multiple Puter tokens, auto-failover on 402/429, serialized queue (Puter hates parallel calls) |
+1. Accepts OpenAI (`/v1/chat/completions`) or Anthropic (`/v1/messages`)
+   shapes — **including `tools`/`tool_choice`**, so agents work.
+2. Stamps an Anthropic **cache breakpoint** on the system message, making the
+   static system+tools prefix bill ~5% on repeat turns (Claude).
+3. Sends the call through the token pool (round-robin, serialized —
+   Puter rejects parallel calls on one account — with 429 backoff and
+   402/429 failover).
+4. Buffers upstream, then re-emits **SSE streaming** with valid
+   `finish_reason`, and records tokens + ¢ to `/api/usage`.
 
 ## 🚀 Quick start
 
@@ -50,6 +59,10 @@ cp opencode.json.example ./opencode.json
 opencode run --model puter/claude-haiku-5-5 "Reply with exactly: HI"
 ```
 
+More examples: [`examples/curl.sh`](examples/curl.sh),
+[`examples/python_openai.py`](examples/python_openai.py),
+[`examples/opencode.md`](examples/opencode.md).
+
 ## 📖 `opus` CLI
 
 | Command | Does |
@@ -60,6 +73,14 @@ opencode run --model puter/claude-haiku-5-5 "Reply with exactly: HI"
 | `opus add-token <tok>` | Save a token manually (puter.com → DevTools → localStorage → `auth_token`) |
 | `opus tokens` | List saved accounts (redacted) |
 | `opus logs` / `opus stop` | Tail logs / stop proxy |
+
+## 🆚 Why not just…
+
+| Alternative | Gap opus-free fills |
+|---|---|
+| Raw Puter.js in browser | no OpenCode/tool-call wiring, no pooling, no cost meter |
+| Generic OpenAI proxies | drop `tools`, fake streams break agents, no Puter auth flow |
+| Paid API keys | this is free (within Puter's free allowance) |
 
 ## 💰 Cost cheat-sheet
 
@@ -84,6 +105,20 @@ phone verification, so realistically pool 1–3 accounts. `402
 insufficient_funds` = dry pool → wait for reset or Switch-account to a second
 account via `opus login`.
 
+## 🗂️ Project structure
+
+```text
+opus-free/
+├── puter-proxy.mjs       # the proxy — zero deps, node >= 20
+├── bin/opus              # global CLI
+├── opencode.json.example # provider config (Haiku default)
+├── examples/             # curl / python / opencode snippets
+└── docs/ui.png           # sign-in page screenshot
+```
+
+Runtime state lives outside the repo: `~/.opus/` (tokens, usage, logs) —
+nothing credential-like is ever committed.
+
 ## 🔌 Endpoints
 
 | Endpoint | Shape |
@@ -95,7 +130,8 @@ account via `opus login`.
 | `GET /api/usage` | spend JSON · `POST /api/save-token` · `GET /healthz` |
 
 Tokens load from `$PUTER_TOKEN` / `$PUTER_TOKENS` and pooled account storage;
-the proxy never hardcodes credentials.
+the proxy never hardcodes credentials. Env knobs: `PUTER_PROXY_PORT`,
+`PUTER_API_BASE_URL`, `REQUEST_TIMEOUT_MS`, `SQLITE_PATH`.
 
 ## 🛠️ Troubleshooting
 
