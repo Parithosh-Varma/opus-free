@@ -2,19 +2,21 @@
   // Memory layer for opus-free: agent recalls from memory instead of
   // re-sending full history every turn. Pick ONE backend:
   //
-  // A) Cloud (easiest, free tier): get a key at https://supermemory.ai,
-  //    then:  bunx opencode-supermemory@latest login
-  //    (or paste it as "apiKey" below)
-  //
-  // "apiKey": "sm_...",
-  //
-  // B) Local server (private, needs an embedding provider key):
-  //    supermemory-server  (listens on http://localhost:6767)
-  //    with one of OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY /
-  //    GROQ_API_KEY set (Groq + Gemini have free tiers).
+  // A) Local server (recommended, private) — embeddings via Groq free tier:
+  //    1. Get a free key at https://console.groq.com/keys
+  //    2. export GROQ_API_KEY="gsk_..."
+  //    3. supermemory-server   (listens on http://localhost:6767)
+  //    4. Keep the baseUrl + apiKey below.
   //
   // "baseUrl": "http://localhost:6767",
   // "apiKey": "sm_...",
+  //
+  // B) Cloud (easiest): key from https://supermemory.ai, then:
+  //    bunx opencode-supermemory@latest login
+  //    (or paste it as "apiKey" below, no baseUrl)
+  //
+  // "apiKey": "sm_...",
+  //
 
   "recallMode": "direct",
   "captureEveryNTurns": 3

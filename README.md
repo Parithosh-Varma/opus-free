@@ -114,10 +114,15 @@ instead of you carrying a 158K-token history forever.
 
 ```sh
 bunx opencode-supermemory@latest install --no-tui
-bunx opencode-supermemory@latest login     # or set SUPERMEMORY_API_KEY
-bunx opencode-supermemory@latest status
+export GROQ_API_KEY="gsk_..."   # free key from https://console.groq.com/keys
+supermemory-server &            # local memory on http://localhost:6767
 cp supermemory.jsonc.example ~/.config/opencode/supermemory.jsonc  # then add your key
+bunx opencode-supermemory@latest status
 ```
+
+No Groq key? Fall back to the free cloud tier (`bunx
+opencode-supermemory@latest login`) — both options are in
+[`supermemory.jsonc.example`](supermemory.jsonc.example).
 
 Then inside OpenCode run `/supermemory-index` once per project so the
 codebase structure is memorized up front. The working loop becomes: **fresh
