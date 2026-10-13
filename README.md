@@ -1,69 +1,116 @@
-# opus-free — frontier models for free in OpenCode
+# opus-free 🆓
 
-Use **Claude Opus 5.5, Sonnet, Haiku, GPT, Gemini, DeepSeek** and 900+ other
-models in [OpenCode](https://opencode.ai) for free, via pooled
-[Puter](https://puter.com) accounts. No API keys to buy, no card.
+> **Frontier models, free, in your terminal.** Use Claude Opus 5.5, Sonnet,
+> Haiku, GPT, Gemini, DeepSeek and 900+ other models in
+> [OpenCode](https://opencode.ai) — routed through your free
+> [Puter](https://puter.com) account. No API keys to buy. No card. Ever.
 
-How it works: `opus` starts a local proxy (`127.0.0.1:3001`) that speaks the
-OpenAI + Anthropic APIs OpenCode expects, and forwards calls to Puter with
-your free Puter account token(s) — with tool-call support, request queueing,
-prompt-cache breakpoints, and live cost tracking.
+![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![No deps](https://img.shields.io/badge/deps-zero-orange)
 
-## Quick start
+---
 
-```sh
-git clone https://github.com/<you>/opus-free.git && cd opus-free
-cp bin/opus ~/bin/opus   # or anywhere on your PATH
-opus                     # start proxy + open sign-in page
+## How it works
+
+```text
+OpenCode ──OpenAI/Anthropic API──▶ opus proxy :3001 ──▶ api.puter.com ──▶ Claude Opus 5.5 …
+                                    ▲  ▲  ▲
+                          tool calls │ cache │ cost meter
 ```
 
-Click **Sign in to Puter**, approve the popup. Token is verified and saved
-automatically. Then in a project with the example config:
+`opus` starts a zero-dependency local proxy that speaks the exact APIs
+OpenCode expects (`/v1/chat/completions`, `/v1/messages`) and forwards calls
+to Puter using free Puter account tokens — with **function calling**,
+**request queueing with 429 backoff**, **prompt-cache breakpoints**, and
+**live spend tracking** built in.
+
+## ✨ Features
+
+| | |
+|---|---|
+| 🔑 **One-click sign-in** | Proxy serves a page with a **Sign in to Puter** button — popup auth, token verified + saved automatically |
+| 🛠️ **Full tool support** | OpenAI `tool_calls` and Anthropic `tool_use` blocks translated end-to-end, so OpenCode agents actually work |
+| 💸 **Credit survival kit** | Prompt-cache breakpoints make repeat context ~5% price on Claude; Haiku default; per-call ¢ logging |
+| 📊 **Live cost meter** | Sign-in page shows session requests/tokens/¢; `GET /api/usage` returns JSON totals per model |
+| 🔁 **Pool + failover** | Round-robin across multiple Puter tokens, auto-failover on 402/429, serialized queue (Puter hates parallel calls) |
+
+## 🚀 Quick start
+
+```sh
+git clone https://github.com/Parithosh-Varma/opus-free.git && cd opus-free
+cp bin/opus ~/bin/opus          # or anywhere on your PATH
+opus                            # start proxy + open sign-in page
+```
+
+Click **Sign in to Puter** → approve the popup → done. Then:
 
 ```sh
 cp opencode.json.example ./opencode.json
 opencode run --model puter/claude-haiku-5-5 "Reply with exactly: HI"
 ```
 
-More commands: `opus status` · `opus login` (reopen sign-in) ·
-`opus add-token <tok>` (manual) · `opus stop` · `opus logs`.
+## 📖 `opus` CLI
 
-## Why credits vanish (read this)
+| Command | Does |
+|---|---|
+| `opus` | Start proxy on `:3001`, open sign-in UI |
+| `opus login` | Reopen the sign-in page anytime |
+| `opus status` | Health, model count, saved tokens |
+| `opus add-token <tok>` | Save a token manually (puter.com → DevTools → localStorage → `auth_token`) |
+| `opus tokens` | List saved accounts (redacted) |
+| `opus logs` / `opus stop` | Tail logs / stop proxy |
 
-Every message re-sends the full conversation as input. Real example from the
-Puter dashboard: **158,231 input tokens vs 139 output** in one session. The
-proxy stamps prompt-cache breakpoints so the static system+tools prefix bills
-~5% on repeats (Claude), and the default model is Haiku — but a long session
-on Opus still drains a free account. Fresh sessions per task, `/compact`
-early, Haiku for small work.
+## 💰 Cost cheat-sheet
 
-Puter free accounts have a throttled daily allowance, and Puter now asks for
-phone verification — so pool realistically 1–3 accounts. `402
-insufficient_funds` = dry pool: wait for reset or Switch-account to a second
-account (`opus login`).
+Puter prices (usd-cents / 1M tokens, in / out):
 
-## Cost cheat-sheet (Puter, usd-cents / 1M tokens in/out)
-
-| Model | In | Out | Use |
+| Model | In | Out | Role |
 |---|---|---|---|
-| claude-opus-5-5 | 400 | 2000 | hard problems only |
-| claude-sonnet-5-5 | 200 | 1000 | main driver, best value |
-| claude-haiku-5-5 | 10 | 50 | default + small tasks |
-| deepseek-v4-flash | 44 | 132 | cheap bulk |
-| gemini-2.5-flash-lite | 10 | 40 | cheap bulk |
-| gpt-4o-mini | 15 | 60 | cheap bulk |
+| `claude-opus-5-5` | 400 | 2000 | hard problems only |
+| `claude-sonnet-5-5` | 200 | 1000 | main driver — best value |
+| `claude-haiku-5-5` | 10 | 50 | **default** + small tasks |
+| `deepseek-v4-flash-0731` | 44 | 132 | cheap bulk |
+| `gemini-2.5-flash-lite` | 10 | 40 | cheap bulk |
+| `gpt-4o-mini` | 15 | 60 | cheap bulk |
 
-Live spend: the sign-in page shows session requests/tokens/¢, and
-`GET :3001/api/usage` returns JSON totals.
+> ⚠️ **Read this before your credits vanish:** every message re-sends the
+> full conversation as input. A real session billed **158,231 input vs 139
+> output tokens**. Mitigate with fresh sessions per task, `/compact` early,
+> Haiku for small work — and cache breakpoints (already on) for the rest.
 
-## Endpoints
+Free Puter accounts get a throttled daily allowance, and Puter now requires
+phone verification, so realistically pool 1–3 accounts. `402
+insufficient_funds` = dry pool → wait for reset or Switch-account to a second
+account via `opus login`.
 
-- `POST /v1/chat/completions` — OpenAI shape, tools supported
-- `POST /v1/messages` — Anthropic shape, tools supported
-- `GET /v1/models` — live Puter model list
-- `GET /` — sign-in UI · `GET /api/usage` — spend · `POST /api/save-token`
+## 🔌 Endpoints
 
-## Disclaimer
+| Endpoint | Shape |
+|---|---|
+| `POST /v1/chat/completions` | OpenAI, tools supported |
+| `POST /v1/messages` (+ `/anthropic/…`) | Anthropic, tools supported |
+| `GET /v1/models` | live Puter model list (~995) |
+| `GET /` | sign-in UI + spend meter |
+| `GET /api/usage` | spend JSON · `POST /api/save-token` · `GET /healthz` |
 
-Free-tier pooling lives within Puter's free allowance per account. Respect
-Puter's terms; this is a local dev proxy, not a service to share publicly.
+Tokens load from `$PUTER_TOKEN` / `$PUTER_TOKENS` and pooled account storage;
+the proxy never hardcodes credentials.
+
+## 🛠️ Troubleshooting
+
+| Symptom | Cause → fix |
+|---|---|
+| `stream ended without finish_reason` (old versions) | empty stream on upstream error — fixed; update the proxy |
+| `402 insufficient_funds` | dry pool → reset wait or second account |
+| `429 Usage is reserved` | parallel calls on one account → proxy serializes + retries; add accounts |
+| Sign-in popup blocked | call it from the button click (user gesture required) |
+
+## ⚖️ Disclaimer
+
+This pools **your own** Puter free allowance per account — respect Puter's
+terms. It's a local dev proxy, not a service to share publicly.
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
