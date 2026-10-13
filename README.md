@@ -114,15 +114,18 @@ instead of you carrying a 158K-token history forever.
 
 ```sh
 bunx opencode-supermemory@latest install --no-tui
-export GROQ_API_KEY="gsk_..."   # free key from https://console.groq.com/keys
+export GROQ_API_KEY="gsk_..."   # or OPENAI / ANTHROPIC / GEMINI key,
+                                # or your own local model — whatever you use
 supermemory-server &            # local memory on http://localhost:6767
+supermemory-server doctor       # verify setup
 cp supermemory.jsonc.example ~/.config/opencode/supermemory.jsonc  # then add your key
 bunx opencode-supermemory@latest status
 ```
 
-No Groq key? Fall back to the free cloud tier (`bunx
-opencode-supermemory@latest login`) — both options are in
-[`supermemory.jsonc.example`](supermemory.jsonc.example).
+No local setup? Fall back to the free cloud tier (`bunx
+opencode-supermemory@latest login`) — all options are in
+[`supermemory.jsonc.example`](supermemory.jsonc.example). Embeddings run
+locally (onnx) either way; only the LLM side needs your key.
 
 Then inside OpenCode run `/supermemory-index` once per project so the
 codebase structure is memorized up front. The working loop becomes: **fresh
